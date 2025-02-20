@@ -1,0 +1,198 @@
+pipeline {
+    agent any
+
+    environment {
+		PYTHONPATH = '.'
+		MIURL = ''
+		MIURLCOMPLETA = ''
+		MIDATO = ''
+		MIID = ''
+    }
+
+    stages {
+        stage('GetCode') {
+            steps {
+				//Recuperamos el código de nuestro repositorio
+              git branch: 'develop',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              sh 'ls'
+            }
+        }
+
+        stage('Build') {
+           steps {
+              echo 'No hay nada que compilar porque es Python'
+           }
+        }
+
+        //Prueba de analisis de codigo estatico
+        stage('Estatico') {
+            steps {
+                sh 'flake8 src/'
+                sh 'bandit -r src/'
+            }
+        }
+
+        stage('GetCodeMaster') {
+            steps {
+				//Recuperamos el código de nuestro repositorio
+              git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              sh 'ls'
+            }
+        }
+    
+		//Desplegamos la aplicación
+        stage('Despliegue') {
+            steps {
+                sh "sam build"
+                
+                sh '''
+                        sam deploy \
+                            --config-env staging \
+                            --no-fail-on-empty-changeset \
+                            --resolve-s3 \
+                            --force-upload \
+                            --debug
+                '''
+            }
+        }
+        
+        stage('Recuperar URL despues de deploy'){
+            steps{
+                script {
+                    def BASE_URL = sh( script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true)
+                    echo "$BASE_URL"
+                    def url = BASE_URL.trim()
+                    MIURL = url
+                    MIURLCOMPLETA = "${MIURL}/todos"
+                }
+
+            }
+        }
+        
+        stage('Rest'){
+            steps{
+                script {
+                    //Recupero la URL
+                    echo "desde Rest: ${MIURL}"
+
+                   //*************************
+                   //Prueba todos de listar
+                   //*************************
+                   response = sh(script: "curl -X GET ${MIURLCOMPLETA}", returnStdout: true).trim()
+                   echo "Respuesta del todos: ${response}"
+                }
+                
+                script{
+                    //*************************
+                    //Prueba todos de añadir
+                    //*************************
+                    MIDATO = '{ "text": "Aprender AZURE" }'
+
+                    // Ejecutar el curl con un POST y los datos en formato JSON
+                    response = sh(script: """
+                        curl -X POST ${MIURLCOMPLETA} --data '${MIDATO}' -H "Content-Type: application/json"
+                        """, returnStdout: true).trim()
+
+                    echo "Respuesta del servidor: ${response}"
+
+                    // Parsear el JSON usando Groovy
+                    def jsonResponse = new groovy.json.JsonSlurper().parseText(response)
+                    echo "Respuesta del servidor: ${jsonResponse}"
+
+                    // Extraer el cuerpo JSON desde el campo 'body'
+                    def bodyJson = jsonResponse.body
+
+                    // Usar JsonSlurper para convertir el cuerpo JSON en un objeto Groovy
+                    jsonResponse = new groovy.json.JsonSlurper().parseText(bodyJson)
+
+                    // Extraer el ID desde la respuesta JSON
+                    def id = jsonResponse.id
+
+                    // Mostrar el ID extraído
+                    echo "ID extraído: ${id}"
+                    
+                    //Guardo el ID el mi variable GLOBAL
+                    MIID = id
+                    
+                    // Hacer una pausa de 10 segundos
+                    sleep time: 10, unit: 'SECONDS'
+                }
+                
+                script {
+                   //*************************
+                   //Prueba todos de modificar
+                   //Utilizamos el mismo ID para modificarlo
+                   //*************************
+                   //MIID = "5676597c-ef75-11ef-8579-fbac39382731"
+                   MIDATO = '{ "text": "Aprender PRUEBA", "checked": false }'
+
+                   // Ejecutar el curl con un POST y los datos en formato JSON
+                   response = sh(script: """
+                       curl -X PUT ${MIURLCOMPLETA}/${MIID} --data '${MIDATO}' -H "Content-Type: application/json"
+                       """, returnStdout: true).trim()
+
+                   echo "Respuesta del servidor: ${response}"
+                   
+                   // Hacer una pausa de 10 segundos
+                   sleep time: 10, unit: 'SECONDS'
+               
+                }
+
+                script {
+                   //*************************
+                   //Prueba todos de recuperar
+                   //Utilizamos el mismo ID para modificarlo
+                   //*************************
+                   //MIID = "a7926eb6-ef89-11ef-bee5-75ec5acb6854"
+
+                   // Ejecutar el curl con un POST y los datos en formato JSON
+                   response = sh(script: """
+                       curl -X GET ${MIURLCOMPLETA}/${MIID} -H "Content-Type: application/json"
+                       """, returnStdout: true).trim()
+
+                   echo "Respuesta del servidor: ${response}"
+                   
+                   // Hacer una pausa de 10 segundos
+                   sleep time: 10, unit: 'SECONDS'
+               
+                }
+               
+                script {
+                   //*************************
+                   //Prueba todos de eliminar
+                   //Utilizamos el mismo ID para eliminarlo
+                   //*************************
+                   //MIID = "e48083cc-ef77-11ef-bd71-c1d8cc012315"
+           
+                   response = sh(script: """ 
+                       curl -X DELETE ${MIURLCOMPLETA}/${MIID}
+                       """, returnStdout: true).trim()
+           
+                   echo "Respuesta del servidor: ${response}"
+                   
+                   // Hacer una pausa de 10 segundos
+                   sleep time: 10, unit: 'SECONDS'
+                }
+                
+                script {
+                   //*************************
+                   //Prueba todos de listar para volver a mostrar los datos de los tests anteriores
+                   //*************************
+                   response = sh(script: "curl -X GET ${MIURLCOMPLETA}", returnStdout: true).trim()
+                   echo "Respuesta del todos: ${response}"
+               }
+               
+            }
+        }
+
+        stage('Promote'){
+            steps{
+                
+
+            }
+        }
+
+    }
+
+}

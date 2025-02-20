@@ -1,0 +1,110 @@
+pipeline {
+    agent any
+
+    environment {
+		PYTHONPATH = '.'
+		MIURL = ''
+		MIURLCOMPLETA = ''
+		MIDATO = ''
+		MIID = ''
+    }
+
+    stages {
+        stage('GetCode') {
+            steps {
+				//Recuperamos el código de nuestro repositorio
+              git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              sh 'ls'
+            }
+        }
+
+        stage('Build') {
+           steps {
+              echo 'No hay nada que compilar porque es Python'
+           }
+        }
+
+		//Desplegamos la aplicación
+        stage('Despliegue') {
+            steps {
+                sh "sam build"
+                
+                sh '''
+                        sam deploy \
+                            --config-env production \
+                            --no-fail-on-empty-changeset \
+                            --resolve-s3 \
+                            --force-upload \
+                            --debug
+                '''
+            }
+        }
+        
+        stage('Recuperar URL despues de deploy'){
+            steps{
+                script {
+                    def BASE_URL = sh( script: "aws cloudformation describe-stacks --stack-name todo-list-aws-production --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true)
+                    echo "$BASE_URL"
+                    def url = BASE_URL.trim()
+                    MIURL = url
+                    MIURLCOMPLETA = "${MIURL}/todos"
+                }
+
+            }
+        }
+        
+        stage('Rest'){
+            steps{
+                script {
+                    //Recupero la URL
+                    echo "desde Rest: ${MIURL}"
+
+                    //*************************
+                    //Prueba todos de listar
+                    //*************************
+                    response = sh(script: "curl -X GET ${MIURLCOMPLETA}", returnStdout: true).trim()
+                    echo "Respuesta del todos: ${response}"
+                
+                    // Usamos JsonSlurper para parsear el JSON
+                    def jsonResponse = new groovy.json.JsonSlurper().parseText(response)
+
+                    // Extraemos el id del primer elemento del arreglo
+                    def id = jsonResponse[0].id
+
+                    // Mostrar el id extraído
+                    echo "ID extraído: ${id}"
+                    
+                    //Guardo el ID el mi variable GLOBAL
+                    MIID = id
+                    
+                    // Hacer una pausa de 10 segundos
+                    sleep time: 10, unit: 'SECONDS'
+                }
+
+               script {
+                   //*************************
+                   //Prueba todos de recuperar
+                   //Utilizamos el mismo ID para modificarlo
+                   //*************************
+                   MIID = "01c44e8f-ef90-11ef-9ca8-4fa125150f25"
+
+                   // Ejecutar el curl con un POST y los datos en formato JSON
+                   response = sh(script: """
+                       curl -X GET ${MIURLCOMPLETA}/${MIID} -H "Content-Type: application/json"
+                       """, returnStdout: true).trim()
+
+                   echo "Respuesta del servidor: ${response}"
+                   
+                   // Hacer una pausa de 10 segundos
+                   sleep time: 10, unit: 'SECONDS'
+               
+                }
+
+               
+            }
+        }
+
+    }
+
+}
