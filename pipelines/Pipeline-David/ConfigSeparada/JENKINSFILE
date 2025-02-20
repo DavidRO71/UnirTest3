@@ -13,7 +13,7 @@ pipeline {
         stage('GetCode') {
             steps {
 				//Recuperamos el código de nuestro repositorio
-              git branch: 'staging',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              git branch: 'staging',  url: 'https://github.com/DavidRO71/todo-list-aws-config.git'
               sh 'ls'
             }
         }
@@ -21,7 +21,7 @@ pipeline {
         stage('GetCodeMaster') {
             steps {
 				//Recuperamos el código de nuestro repositorio
-              git branch: 'production',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              git branch: 'production',  url: 'https://github.com/DavidRO71/todo-list-aws-config.git'
               sh 'ls'
             }
         }
