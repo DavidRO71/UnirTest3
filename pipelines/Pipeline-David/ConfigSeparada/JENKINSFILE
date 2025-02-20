@@ -1,0 +1,31 @@
+pipeline {
+    agent any
+
+    environment {
+		PYTHONPATH = '.'
+		MIURL = ''
+		MIURLCOMPLETA = ''
+		MIDATO = ''
+		MIID = ''
+    }
+
+    stages {
+        stage('GetCode') {
+            steps {
+				//Recuperamos el código de nuestro repositorio
+              git branch: 'staging',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              sh 'ls'
+            }
+        }
+
+        stage('GetCodeMaster') {
+            steps {
+				//Recuperamos el código de nuestro repositorio
+              git branch: 'production',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+              sh 'ls'
+            }
+        }
+    
+    }
+
+}
