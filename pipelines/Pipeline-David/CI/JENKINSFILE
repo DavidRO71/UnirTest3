@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('GetCode') {
             steps {
-				//Recuperamos el código de nuestro repositorio
+				//Recuperamos el código de nuestro repositorio de develop
               git branch: 'develop',  url: 'https://github.com/DavidRO71/UnirTest3.git'
               sh 'ls'
             }
@@ -34,17 +34,19 @@ pipeline {
 
         stage('GetCodeMaster') {
             steps {
-				//Recuperamos el código de nuestro repositorio
-              git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
-              sh 'ls'
+				//Recuperamos el código de nuestro repositorio de master
+                git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+                sh 'ls'
             }
         }
     
 		//Desplegamos la aplicación
         stage('Despliegue') {
             steps {
+                //Hacemos la compilación
                 sh "sam build"
                 
+                //Hacemos el despliegue
                 sh '''
                         sam deploy \
                             --config-env staging \
@@ -61,9 +63,13 @@ pipeline {
                 script {
                     def BASE_URL = sh( script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
                         returnStdout: true)
+                    //Esta es nuestra URL
                     echo "$BASE_URL"
+                    //Le quito el intro que tiene al final
                     def url = BASE_URL.trim()
+                    //La guardo en la variable de entorno
                     MIURL = url
+                    //le añado el final de la URL
                     MIURLCOMPLETA = "${MIURL}/todos"
                 }
 
@@ -141,8 +147,7 @@ pipeline {
 
                 script {
                    //*************************
-                   //Prueba todos de recuperar
-                   //Utilizamos el mismo ID para modificarlo
+                   //Prueba todos de recuperar 1 todo con su ID
                    //*************************
                    //MIID = "a7926eb6-ef89-11ef-bee5-75ec5acb6854"
 

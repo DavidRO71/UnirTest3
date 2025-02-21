@@ -13,8 +13,10 @@ pipeline {
         stage('GetCode') {
             steps {
 				//Recuperamos el código de nuestro repositorio
-              git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
-              sh 'ls'
+                git branch: 'master',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+                sh 'ls'
+                //Almacenamos el codigo en un almacen temporal para luego poder tener acceso a el en otro agente
+                stash includes: '**', name: 'codigo'
             }
         }
 
@@ -27,6 +29,9 @@ pipeline {
 		//Desplegamos la aplicación
         stage('Despliegue') {
             steps {
+                //Recuperamos el codigo que hemos almacenado anteriormente
+                unstash 'codigo'
+
                 //Hacemos la compilación
                 sh "sam build"
                 
@@ -60,8 +65,29 @@ pipeline {
 
             }
         }
+
+        //Prueba de analisis de codigo estatico
+        stage('Estatico') {
+            agent { 
+                //Llamamos al agente1
+                label 'agente1' 
+            }
+            steps {
+                //Recuperamos el codigo que hemos almacenado anteriormente
+                unstash 'codigo'
+
+                //Realizamos las pruebas
+                sh 'flake8 src/'
+                sh 'bandit -r src/'
+            }
+        }
         
         stage('Rest'){
+            agent { 
+                //Llamamos al agente2
+                label 'agente2' 
+            }
+
             steps{
                 script {
                     //Recupero la URL
@@ -69,7 +95,6 @@ pipeline {
 
                     //*************************
                     //Prueba todos de listar
-                    //y recuperamos el 1er ID
                     //*************************
                     response = sh(script: "curl -X GET ${MIURLCOMPLETA}", returnStdout: true).trim()
                     echo "Respuesta del todos: ${response}"
@@ -90,17 +115,18 @@ pipeline {
                     sleep time: 10, unit: 'SECONDS'
                 }
 
-               script {
+                //Esta pruab no la he ejecutado en el pipeline
+                script {
                     //*************************
                     //Prueba todos de recuperar 1 todo con su ID
                     //*************************
                     MIID = "01c44e8f-ef90-11ef-9ca8-4fa125150f25"
 
-                    // Ejecutar el curl con un POST y los datos en formato JSON
+                   // Ejecutar el curl con un POST y los datos en formato JSON
                     response = sh(script: """
                         curl -X GET ${MIURLCOMPLETA}/${MIID} -H "Content-Type: application/json"
                         """, returnStdout: true).trim()
-                    
+
                     //Muestro lo que nos devuelve la llamada a la API
                     echo "Respuesta del servidor: ${response}"
                    
