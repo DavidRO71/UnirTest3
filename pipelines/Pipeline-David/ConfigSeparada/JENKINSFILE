@@ -1,31 +1,40 @@
 pipeline {
     agent any
 
-    environment {
-		PYTHONPATH = '.'
-		MIURL = ''
-		MIURLCOMPLETA = ''
-		MIDATO = ''
-		MIID = ''
-    }
-
     stages {
-        stage('GetCode') {
+        stage('GetCodeStaging') {
             steps {
-				//Recuperamos el código de nuestro repositorio
-              git branch: 'staging',  url: 'https://github.com/DavidRO71/todo-list-aws-config.git'
-              sh 'ls'
+		        //Recuperamos el código de nuestro repositorio
+                git branch: 'develop',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+                sh 'ls'
+
+                // Eliminar el archivo samconfig.toml de develop
+                sh 'rm samconfig.toml'
+                sh 'ls'
+
+                // Descargar el archivo desde GitHub
+                sh 'wget https://github.com/DavidRO71/todo-list-aws-config/blob/staging/samconfig.toml'
+                sh 'ls'
             }
         }
-
-        stage('GetCodeMaster') {
+        
+        stage('GetCodeProduction') {
             steps {
-				//Recuperamos el código de nuestro repositorio
-              git branch: 'production',  url: 'https://github.com/DavidRO71/todo-list-aws-config.git'
-              sh 'ls'
+		        //Recuperamos el código de nuestro repositorio
+                git branch: 'production',  url: 'https://github.com/DavidRO71/UnirTest3.git'
+                sh 'ls'
+
+                // Eliminar el archivo samconfig.toml de develop
+                sh 'rm samconfig.toml'
+                sh 'ls'
+
+                // Descargar el archivo desde GitHub
+                sh 'wget https://github.com/DavidRO71/todo-list-aws-config/blob/production/samconfig.toml'
+                sh 'ls'
             }
         }
     
     }
 
 }
+
